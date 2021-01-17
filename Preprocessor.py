@@ -1,23 +1,15 @@
 import cv2
 import numpy as np
-import math
-import glob
 import os
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from skimage.filters.rank import otsu
-from skimage.filters import median, threshold_otsu
 
 
 class Preprocessor:
     @staticmethod
-    def read_images(fileName, imagesIDs):
-        # fileName = fileName + '/*png'
+    def read_images(filename, images_ids):
         x_train = []
         x_images_names = []
-        for imageID in imagesIDs:
-            # cv2.imread reads images in RGB format
-            img = cv2.imread(fileName+'/'+imageID)
+        for imageID in images_ids:
+            img = cv2.imread(filename + '/' + imageID)
             x_images_names.append(imageID)
             x_train.append(img)
         x_train = np.asarray(x_train)
@@ -30,33 +22,26 @@ class Preprocessor:
         img = cv2.GaussianBlur(img, (5, 5), 0)
 
         # Binarize the image.
-        # _,thresholded_img =  cv2.threshold(img, 165,255,cv2.THRESH_BINARY)
-        _, thresholded_img = cv2.threshold(
-            img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
         # Return pre processed images.
-        return thresholded_img
+        return binary
 
     @staticmethod
-    def crop(img, origImg):
-        # Converting the image to grayscale
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        _, binary = cv2.threshold(gray, 225, 255, cv2.THRESH_BINARY_INV)
+    def crop(img):
 
         # Finding all contours in the image
-        contours, hierarchy = cv2.findContours(
-            binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # Minimum contour width to be considered as the black separator line.
         threshold_width = 1000
         line_offset = 0
 
         # Page paragraph boundaries.
-        height, width = gray.shape
+        height, width = img.shape
         up, down, left, right = 0, height - 1, 0, width - 1
 
-        # Detect the main horizontal black 
+        # Detect the main horizontal black
         # separator lines of the IAM handwriting forms.
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
@@ -69,7 +54,7 @@ class Preprocessor:
 
         # Applying filters to enhance the image
         kernel = np.ones((3, 3), np.uint8)
-        eroded_img = cv2.erode(binary, kernel, iterations=2)
+        eroded_img = cv2.erode(img, kernel, iterations=2)
         # Get horizontal and vertical histograms.
         hor_hist = np.sum(eroded_img, axis=1) / 255
         ver_hist = np.sum(eroded_img, axis=0) / 255
@@ -84,73 +69,37 @@ class Preprocessor:
         while down > up and hor_hist[down] == 0:
             down -= 1
 
-        gray = gray[up:down + 1, left:right + 1]
-        binary = binary[up:down + 1, left:right + 1]
-        origImg = origImg[up:down + 1, left:right + 1]
+        binary = img[up:down + 1, left:right + 1]
 
-        return gray, binary, origImg
+        return binary
 
     @staticmethod
-    def save_preprocessed(fileName, x_images_names, x_train_gray,
-     x_train_binary, x_train_orig, writer_id):
-        gray_directory = 'PreprocessedImages/'+writer_id+'/gray/'
+    def save_preprocessed(filename, x_images_names, x_train_binary, writer_id):
+
         binary_directory = 'PreprocessedImages/'+writer_id+'/binary/'
-        orig_directory = 'PreprocessedImages/'+writer_id+'/orig/'
-        if not os.path.exists(fileName + gray_directory):
-            os.makedirs(fileName + gray_directory)
-        if not os.path.exists(fileName + binary_directory):
-            os.makedirs(fileName + binary_directory)
-        if not os.path.exists(fileName + orig_directory):
-            os.makedirs(fileName + orig_directory)
-#        for i in range(len(x_train_gray)):
-#             print(fileName +'gray/' + str(x_images_names[i]))
-#             print(fileName + 'binary/' + str(x_images_names[i]))
-#             cv2.imwrite(fileName +gray_directory + str(x_images_names[i]) ,x_train_gray[i])
-#             cv2.imwrite(fileName + binary_directory + str(x_images_names[i]),x_train_binary[i])
-#             cv2.imwrite(fileName + orig_directory + str(x_images_names[i]),x_train_orig[i])
+        if not os.path.exists(filename + binary_directory):
+            os.makedirs(filename + binary_directory)
+        for i in range(len(x_train_binary)):
+            print(filename + 'binary/' + str(x_images_names[i]))
+            cv2.imwrite(filename + binary_directory + str(x_images_names[i]), x_train_binary[i])
 
     @staticmethod
-    def preprocessing_pipeline(fileName, imagesIDs, writer_id):
-        x_train, x_images_names = Preprocessor.read_images(fileName, imagesIDs)
-        x_train_gray = []
+    def preprocessing_pipeline(file_name, images_ids, writer_id, save=False):
+        x_train, x_images_names = Preprocessor.read_images(file_name, images_ids)
         x_train_binary = []
-        x_train_orig = []
         for origImg in x_train:
-            preprocessedImage = Preprocessor.preprocess(origImg)
-            croppedImageGray, croppedImageBinary, croppedImageOriginal = Preprocessor.crop(
-                preprocessedImage, origImg)
-            x_train_gray.append(croppedImageGray)
-            x_train_binary.append(croppedImageBinary)
-            x_train_orig.append(croppedImageOriginal)
+            preprocessed_image = Preprocessor.preprocess(origImg)
+            cropped_image_binary = Preprocessor.crop(preprocessed_image)
+            x_train_binary.append(cropped_image_binary)
 
-        Preprocessor.save_preprocessed(
-            fileName, x_images_names, x_train_gray, x_train_binary, x_train_orig, writer_id)
-        return x_train_gray, x_train_binary, x_train_orig
+        if save:
+            Preprocessor.save_preprocessed(
+                file_name, x_images_names, x_train_binary, writer_id)
+        return x_train_binary
 
     @staticmethod
     def preprocessing_pipeline_image(image):
 
-        preprocessedImage = Preprocessor.preprocess(image)
-        croppedImageGray, croppedImageBinary, croppedImageOriginal = Preprocessor.crop(
-            preprocessedImage, image)
-        return croppedImageGray, croppedImageBinary, croppedImageOriginal
-
-# def get_writers_images_names(file_path):
-#     try:
-#         file = open(file_path, "r")
-#         file_lines = file.readlines()
-#         for i in range(len(file_lines)):
-#             file_lines[i] = file_lines[i].rstrip("\n")
-#         file.close()
-#         return file_lines
-#     except IOError:
-#         return []
-
-# prep = Preprocessor()
-# z = '%03d' % 13
-# writerImagesID = get_writers_images_names("Data\Writers\\"+z+".txt")
-# print(z)
-# print(writerImagesID)
-# x_train_gray, x_train_binary, x_train_orig = prep.preprocessing_pipeline('Data/AllDataset',writerImagesID,z)
-
-# gray_segments, bin_segments, orig_segments = segment_writer('Data/AllDatasetPreprocessedImages/', '013')
+        preprocessed_image = Preprocessor.preprocess(image)
+        cropped_image_binary = Preprocessor.crop(preprocessed_image)
+        return cropped_image_binary

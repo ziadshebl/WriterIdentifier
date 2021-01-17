@@ -13,7 +13,7 @@ test_dataset_directory = "Data\\data2\\"
 final_directory = "Data\\data2\\"
 predictions_filename = "results.txt"
 timers_filename = "timers.txt"
-test_cases_range = range(0, 200)
+test_cases_range = range(0, 5)
 
 # Variables
 counter = 0
@@ -31,13 +31,11 @@ for i in tqdm(test_cases_range):
 
     # Reading the inputs and labelling the training dataset
     x_train, y_train, x_test = Utilities.read_test_case(test_dataset_directory + folder_name)
-    x_train_gray = []
     x_train_binary = []
 
     # Preprocessing every image in the input dataset
     for img in x_train:
-        gray, binary, original = Preprocessor.preprocessing_pipeline_image(img)
-        x_train_gray.append(gray)
+        binary = Preprocessor.preprocessing_pipeline_image(img)
         x_train_binary.append(binary)
 
     # Segmenting the dataset into lines
@@ -45,9 +43,9 @@ for i in tqdm(test_cases_range):
     x_train_segments = np.empty(256)
     y_train_segments = []
 
-    for w in range(len(x_train_gray)):
+    for w in range(len(x_train_binary)):
 
-        gray_lines, binary_lines = LineSegmentor.segmentation_pipeline(x_train_gray[w], x_train_binary[w])
+        binary_lines = LineSegmentor.segmentation_pipeline(x_train_binary[w])
         for j in range(len(binary_lines)):
 
             lbp_hist = LBPFeatureExtractor.compute_lbp_hist(binary_lines[j])
@@ -66,11 +64,11 @@ for i in tqdm(test_cases_range):
     # --------------------------------TEST---------------------------------#
 
     # Preprocessing the image in the testing dataset
-    x_test_gray, x_test_binary, x_test_original = Preprocessor.preprocessing_pipeline_image(x_test)
+    x_test_binary = Preprocessor.preprocessing_pipeline_image(x_test)
 
     # Segmenting the dataset into lines
     # And Calculating the features vector
-    gray_lines, binary_lines = LineSegmentor.segmentation_pipeline(x_test_gray, x_test_binary)
+    binary_lines = LineSegmentor.segmentation_pipeline(x_test_binary)
     x_test_segments = np.empty([len(binary_lines), 256])
     for w in range(len(binary_lines)):
         lbp_hist = LBPFeatureExtractor.compute_lbp_hist(binary_lines[w])

@@ -4,23 +4,20 @@ import numpy as np
 class LineSegmentor:
 
     @staticmethod
-    def segment(lines_boundaries, gray_image, binary_image):
+    def segment(lines_boundaries, binary_image):
 
         # Initialize lines lists.
-        gray_lines, binary_lines = [], []
+        binary_lines = []
 
         # Loop on every line boundary.
         for left, up, right, down in lines_boundaries:
-            # Crop gray line.
-            g_line = gray_image[up:down + 1, left:right + 1]
-            gray_lines.append(g_line)
 
             # Crop binary line.
             b_line = binary_image[up:down + 1, left:right + 1]
             binary_lines.append(b_line)
 
         # Return list of separated lines.
-        return gray_lines, binary_lines
+        return binary_lines
 
     @staticmethod
     def detect_peaks(horizontal_hist, threshold_high):
@@ -113,6 +110,62 @@ class LineSegmentor:
         return lines_boundaries
 
     @staticmethod
+    def is_probable_valley(row, horizontal_hist, threshold_low):
+
+        width = 30
+        count = 0
+
+        for i in range(-width, width):
+            if row + i < 0 or row + i >= len(horizontal_hist):
+                return True
+            if horizontal_hist[row + i] <= threshold_low:
+                count += 1
+
+        if count * 2 >= width:
+            return True
+
+        return False
+
+    @staticmethod
+    def detect_missing_peaks_valleys(valleys, avg_peak_distance, horizontal_hist, threshold_low, peaks):
+
+        i = 1
+        found = False
+
+        while i < len(valleys):
+            # Calculate distance between two consecutive valleys.
+            up, down = valleys[i - 1], valleys[i]
+            dis = down - up
+
+            i += 1
+
+            # If the distance is about twice the average distance between
+            # two consecutive peaks, then it is most probable that we are missing
+            # a line in between these two valleys.
+            if dis < 1.5 * avg_peak_distance:
+                continue
+
+            u = up + avg_peak_distance
+            d = min(down, u + avg_peak_distance)
+
+            while (d - u) * 2 > avg_peak_distance:
+                if LineSegmentor.is_probable_valley(u, horizontal_hist, threshold_low) and \
+                        LineSegmentor.is_probable_valley(d, horizontal_hist, threshold_low):
+                    peak = LineSegmentor.get_peak_in_range(u, d, horizontal_hist)
+                    if horizontal_hist[peak] > threshold_low:
+                        peaks.append(LineSegmentor.get_peak_in_range(u, d, horizontal_hist))
+                        found = True
+
+                u = u + avg_peak_distance
+                d = min(down, u + avg_peak_distance)
+
+        # Re-distribute peaks and valleys if new ones are found.
+        if found:
+            peaks.sort()
+            valleys = LineSegmentor.detect_valleys(peaks, avg_peak_distance, horizontal_hist)
+        return valleys
+
+    @staticmethod
     def get_peak_in_range(up, down, horizontal_hist):
         peak_idx = up
 
@@ -138,19 +191,22 @@ class LineSegmentor:
         return False
 
     @staticmethod
-    def segmentation_pipeline(gray_image, binary_image):
+    def segmentation_pipeline(binary_image):
 
         # Get horizontal histogram.
         horizontal_hist = np.sum(binary_image, axis=1, dtype=int) // 255
 
         # Get line density thresholds.
         threshold_high = int(np.max(horizontal_hist) // 3)
+        threshold_low = 25
 
         # Calculate peaks and valleys of the page.
         peaks = LineSegmentor.detect_peaks(horizontal_hist, threshold_high)
-        avg_peaks_dist = int((peaks[-1] - peaks[0]) // len(peaks))
-        valleys = LineSegmentor.detect_valleys(peaks, avg_peaks_dist, horizontal_hist)
+        avg_peak_distance = int((peaks[-1] - peaks[0]) // len(peaks))
+        valleys = LineSegmentor.detect_valleys(peaks, avg_peak_distance, horizontal_hist)
+        valleys = LineSegmentor.detect_missing_peaks_valleys(valleys, avg_peak_distance,
+                                                             horizontal_hist, threshold_low, peaks)
         lines_boundaries = LineSegmentor.detect_line_boundaries(valleys, binary_image, horizontal_hist)
-        gray_lines, binary_lines = LineSegmentor.segment(lines_boundaries, gray_image, binary_image)
+        binary_lines = LineSegmentor.segment(lines_boundaries, binary_image)
 
-        return gray_lines, binary_lines
+        return binary_lines
