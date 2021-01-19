@@ -13,7 +13,7 @@ number_of_test_cases = 600
 writers_path = "Data\Writers\\"
 
 # Path to generate the dataset at
-test_dataset_directory = "Data\data\\"
+test_dataset_directory = "Data\data2\\"
 
 # Path to all of the images in the dataset
 all_dataset_directory = "Data\AllDataSet\\"

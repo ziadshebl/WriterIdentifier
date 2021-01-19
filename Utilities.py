@@ -111,6 +111,8 @@ class Utilities:
         for result, true in zip(results_inputs, true_inputs):
             if true == result:
                 counter += 1
+            else:
+                print(counter)
 
         return counter
 

@@ -53,7 +53,6 @@ class LBPFeatureExtractor:
         line_resize = cv2.resize(line, dim, interpolation=cv2.INTER_AREA)
         lbp_hist = np.zeros(256)
         h, w = line_resize.shape
-        line_resize[line_resize == 255] = 1
         for i in range(2, h - 2, 5):
             for j in range(2, w - 2, 5):
                 window = line_resize[i - 2:i + 3, j - 2:j + 3]

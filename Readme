@@ -1,0 +1,14 @@
+Packages:
+tqdm
+timeit
+numpy
+cv2
+sklearn
+os
+statistics 
+glob
+matplotlib
+How to run?
+In the Main.py file
+1)Make sure that test_dataset_directory & final_directory equal to the destination of the test cases
+2)run main.py

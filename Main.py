@@ -6,14 +6,21 @@ from FeatureExtractor import LBPFeatureExtractor
 from tqdm import tqdm
 import timeit
 import numpy as np
+import os
 # Constants
 
 # Path to generate the dataset at
-test_dataset_directory = "Data\\data2\\"
-final_directory = "Data\\data2\\"
+test_dataset_directory = "data\\"
+final_directory = "data\\"
 predictions_filename = "results.txt"
 timers_filename = "timers.txt"
-test_cases_range = range(0, 5)
+folder_count = 0
+for folders in os.listdir(test_dataset_directory):
+    if".txt" in folders:
+        None
+    else:
+        folder_count += 1  # increment counter
+test_cases_range = range(0, folder_count)
 
 # Variables
 counter = 0
@@ -115,6 +122,6 @@ for i in tqdm(test_cases_range):
 
 Utilities.write_answers(final_directory, predictions_filename, predictions)
 Utilities.write_answers(final_directory, timers_filename, timers)
-Utilities.generate_answers(final_directory, test_cases_range)
-print(Utilities.calculate_accuracy(final_directory+"results.txt", final_directory+"true.txt"))
+# Utilities.generate_answers(final_directory, test_cases_range)
+# print(Utilities.calculate_accuracy(final_directory+"results.txt", final_directory+"true.txt"))
 print(Utilities.calculate_average_time(final_directory+"timers.txt"))
